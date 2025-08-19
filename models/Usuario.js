@@ -1,5 +1,6 @@
 const { DataTypes } = require('sequelize');
-// const bcrypt = require('bcrypt'); // <-- Bcrypt está desactivado para la depuración
+
+// NO USAR 'bcrypt'
 
 module.exports = (sequelize) => {
   const Usuario = sequelize.define('Usuario', {
@@ -18,11 +19,11 @@ module.exports = (sequelize) => {
           allowNull: false
       },
       rol: {
-          type: DataTypes.STRING,
+          type: DataTypes.STRING, // 'administrador' o 'cajero'
           allowNull: false
       },
       permisos: {
-          type: DataTypes.JSON,
+          type: DataTypes.JSON, // Guardará un array de strings, ej: ["caja", "productos"]
           allowNull: true,
       },
       config_puerto_scanner: {
@@ -80,24 +81,26 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: false,
       },
-      afip_cuit: { type: DataTypes.STRING },
-      afip_pto_vta: { type: DataTypes.INTEGER },
-      afip_cert_path: { type: DataTypes.STRING },
-      afip_key_path: { type: DataTypes.STRING }
+      afip_cuit: { 
+        type: DataTypes.STRING 
+      },
+      afip_pto_vta: { 
+        type: DataTypes.INTEGER 
+      },
+      afip_cert_path: { 
+        type: DataTypes.STRING 
+      },
+      afip_key_path: { 
+        type: DataTypes.STRING 
+      }
   }, {
       tableName: 'Usuario',
       timestamps: true,
-      paranoid: true,
-      // --- El bloque de hooks de bcrypt ha sido eliminado ---
+      paranoid: true
+      // El bloque 'hooks' ha sido completamente eliminado.
   });
 
-  // --- MÉTODO DE VALIDACIÓN SIMPLIFICADO PARA TEXTO PLANO ---
-  // Esta función ahora solo compara si los textos son idénticos.
-  // Incluye un log de depuración para ver los valores en la consola.
-  Usuario.prototype.validPassword = async function(password) {
-      console.log(`[AUTH-DEBUG] Comparando BD:'${this.password}' con FORM:'${password}'`);
-      return this.password === password;
-  }
+  // El método 'Usuario.prototype.validPassword' ha sido completamente eliminado.
 
   return Usuario;
 };
