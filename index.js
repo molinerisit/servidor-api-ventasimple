@@ -10,8 +10,7 @@ const PORT = process.env.PORT || 3000;
 
 // --- Conexión a la Base de Datos de Railway ---
 const DATABASE_URL =
-  "postgresql://postgres:FEjOXRbGCMEnLrvmEJIcyvMWTzVUBFMD@shortline.proxy.rlwy.net:14492/railway";
-
+"postgresql://postgres:QoAHClOZptlLQOyoagCXlFBQoFLBoNEf@tramway.proxy.rlwy.net:57333/railway";
 const sequelize = new Sequelize(DATABASE_URL, {
   dialect: "postgres",
   protocol: "postgres",
