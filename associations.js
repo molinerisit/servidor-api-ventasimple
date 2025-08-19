@@ -1,11 +1,12 @@
-// src/database/associations.js (CORREGIDO PARA USAR UUIDs EN LAS RELACIONES)
-const { DataTypes } = require('sequelize'); // Importamos DataTypes
+const { DataTypes } = require('sequelize');
 
 function applyAssociations(models) {
+  // --- ✅ 1. AÑADIMOS EL NUEVO MODELO A LA LISTA ---
   const {
     Producto, ProductoDepartamento, ProductoFamilia, Proveedor, Venta,
     DetalleVenta, Usuario, Cliente, Factura, Empleado, GastoFijo, Insumo,
-    InsumoDepartamento, InsumoFamilia, Compra, DetalleCompra, MovimientoCuentaCorriente
+    InsumoDepartamento, InsumoFamilia, Compra, DetalleCompra, MovimientoCuentaCorriente,
+    ArqueoCaja // <-- Nuevo modelo incluido
   } = models;
 
   // --- 1. Clasificación de PRODUCTOS ---
@@ -74,6 +75,10 @@ function applyAssociations(models) {
 
   Venta.hasOne(MovimientoCuentaCorriente, { foreignKey: { name: 'VentaId', type: DataTypes.UUID }, as: 'movimiento', onDelete: 'SET NULL' });
   MovimientoCuentaCorriente.belongsTo(Venta, { foreignKey: { name: 'VentaId', type: DataTypes.UUID }, as: 'venta' });
+
+  // --- ✅ 9. AÑADIMOS LA NUEVA ASOCIACIÓN PARA EL ARQUEO DE CAJA ---
+  Usuario.hasMany(ArqueoCaja, { as: 'arqueos', foreignKey: { name: 'UsuarioId', type: DataTypes.UUID } });
+  ArqueoCaja.belongsTo(Usuario, { as: 'usuario', foreignKey: { name: 'UsuarioId', type: DataTypes.UUID } });
 }
 
 module.exports = { applyAssociations };
