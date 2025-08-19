@@ -1,6 +1,5 @@
-// src/database/models/Usuario.js (CORREGIDO PARA SINCRONIZACIÓN)
 const { DataTypes } = require('sequelize');
-const bcrypt = require('bcrypt');
+// const bcrypt = require('bcrypt'); // <-- Bcrypt está desactivado para la depuración
 
 module.exports = (sequelize) => {
   const Usuario = sequelize.define('Usuario', {
@@ -36,7 +35,7 @@ module.exports = (sequelize) => {
       },
       mp_access_token: {
           type: DataTypes.STRING,
-          allowNull: true
+          allowNull: true,
       },
       mp_pos_id: {
           type: DataTypes.STRING,
@@ -88,25 +87,16 @@ module.exports = (sequelize) => {
   }, {
       tableName: 'Usuario',
       timestamps: true,
-      paranoid: true, // Activa la eliminación lógica
-      hooks: {
-        beforeCreate: async (usuario) => {
-          if (usuario.password) {
-            const salt = await bcrypt.genSalt(10);
-            usuario.password = await bcrypt.hash(usuario.password, salt);
-          }
-        },
-        beforeUpdate: async (usuario) => {
-          if (usuario.changed('password')) {
-            const salt = await bcrypt.genSalt(10);
-            usuario.password = await bcrypt.hash(usuario.password, salt);
-          }
-        }
-      }
+      paranoid: true,
+      // --- El bloque de hooks de bcrypt ha sido eliminado ---
   });
 
+  // --- MÉTODO DE VALIDACIÓN SIMPLIFICADO PARA TEXTO PLANO ---
+  // Esta función ahora solo compara si los textos son idénticos.
+  // Incluye un log de depuración para ver los valores en la consola.
   Usuario.prototype.validPassword = async function(password) {
-      return await bcrypt.compare(password, this.password);
+      console.log(`[AUTH-DEBUG] Comparando BD:'${this.password}' con FORM:'${password}'`);
+      return this.password === password;
   }
 
   return Usuario;
