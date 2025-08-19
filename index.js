@@ -48,6 +48,8 @@ const models = {
   Proveedor: require("./models/Proveedor")(sequelize),
   Usuario: require("./models/Usuario")(sequelize),
   Venta: require("./models/Venta")(sequelize),
+  ArqueoCaja: require("./models/ArqueoCaja")(sequelize),
+
 };
 
 const { applyAssociations } = require('./associations');
