@@ -92,6 +92,11 @@ module.exports = (sequelize) => {
       },
       afip_key_path: { 
         type: DataTypes.STRING 
+      },
+        // --- ✅ NUEVO CAMPO AÑADIDO ---
+      config_arqueo_caja: {
+        type: DataTypes.JSON,
+        allowNull: true
       }
   }, {
       tableName: 'Usuario',
