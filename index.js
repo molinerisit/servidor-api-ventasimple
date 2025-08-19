@@ -1,5 +1,5 @@
 const express = require("express");
-const { Sequelize, Op } = require("sequelize"); // Importamos Op para las consultas
+const { Sequelize, Op } = require("sequelize");
 const cors = require("cors");
 
 const app = express();
@@ -24,8 +24,8 @@ const sequelize = new Sequelize(DATABASE_URL, {
   logging: false,
 });
 
-// --- ✅ CARGA DE TODOS LOS MODELOS Y ASOCIACIONES ---
-// 1. Cargamos todos los modelos, igual que en la app de Electron.
+// --- CARGA DE TODOS LOS MODELOS Y ASOCIACIONES ---
+// 1. Cargamos todos los modelos.
 const models = {
   Cliente: require("./models/Cliente")(sequelize),
   Compra: require("./models/Compra")(sequelize),
@@ -48,10 +48,11 @@ const models = {
   Venta: require("./models/Venta")(sequelize),
 };
 
-// 2. Aplicamos las asociaciones. Necesitarás copiar tu archivo 'associations.js' a este proyecto.
-// const { applyAssociations } = require('./associations');
-// applyAssociations(models);
-// POR AHORA, lo comentamos para simplificar. Lo activaremos si es necesario.
+// 2. ✅ APLICAMOS LAS ASOCIACIONES (¡AHORA SÍ!)
+const { applyAssociations } = require('./associations'); // Asume que 'associations.js' está en la raíz
+applyAssociations(models);
+console.log("✅ Modelos y asociaciones cargados en la API.");
+
 
 // --- Rutas de la API (Endpoints) ---
 
@@ -78,7 +79,6 @@ app.post("/sync/push", async (req, res) => {
         (m) => models[m].tableName === registro.tableName
       );
       if (modelName) {
-        // 'upsert' actualiza si existe, o inserta si es nuevo.
         await models[modelName].upsert(registro, { transaction });
       } else {
         console.warn(
@@ -122,7 +122,6 @@ app.get("/sync/pull", async (req, res) => {
         where: { updatedAt: { [Op.gt]: syncDate } },
         paranoid: false,
       });
-      // Añadimos el nombre de la tabla a cada registro para que el cliente sepa qué es
       changes.forEach((c) =>
         allChanges.push({ ...c.toJSON(), tableName: Model.tableName })
       );
@@ -145,24 +144,16 @@ app.get("/sync/pull", async (req, res) => {
 const startServer = async () => {
   try {
     await sequelize.authenticate();
-    // --- ✅ CAMBIO PARA VERIFICACIÓN ---
-    console.log(
-      "✅✅✅ V2 - Conexión a la base de datos de Railway establecida. ✅✅✅"
-    );
-    // Sincroniza TODOS los modelos con la base de datos.
+    console.log("✅ Conexión a la base de datos de Railway establecida.");
+    
     await sequelize.sync({ alter: true });
-    console.log(
-      "✅ Todos los modelos fueron sincronizados con la base de datos en la nube."
-    );
+    console.log("✅ Todos los modelos fueron sincronizados con la base de datos en la nube.");
 
     app.listen(PORT, () => {
       console.log(`🚀 Servidor escuchando en el puerto ${PORT}`);
     });
   } catch (error) {
-    console.error(
-      "❌ No se pudo conectar o sincronizar con la base de datos de Railway:",
-      error
-    );
+    console.error("❌ No se pudo conectar o sincronizar con la base de datos de Railway:", error);
   }
 };
 
