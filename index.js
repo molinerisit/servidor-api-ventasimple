@@ -9,8 +9,14 @@ app.use(express.json({ limit: "50mb" }));
 const PORT = process.env.PORT || 3000;
 
 // --- Conexión a la Base de Datos de Railway ---
-// IMPORTANTE: Es una buena práctica usar variables de entorno para la URL de la base de datos.
-const DATABASE_URL = process.env.DATABASE_URL || "postgresql://postgres:FEjOXRbGCMEnLrvmEJIcyvMWTzVUBFMD@shortline.proxy.rlwy.net:14492/railway";
+// Se lee la URL de la base de datos desde las variables de entorno de Railway.
+const DATABASE_URL = process.env.DATABASE_URL;
+
+// Validación para asegurar que la variable de entorno está presente.
+if (!DATABASE_URL) {
+    console.error("❌ FATAL: La variable de entorno DATABASE_URL no está definida.");
+    process.exit(1); // Detiene la aplicación si no hay URL de base de datos.
+}
 
 const sequelize = new Sequelize(DATABASE_URL, {
   dialect: "postgres",
@@ -47,8 +53,6 @@ const models = {
   Proveedor: require("./models/Proveedor")(sequelize),
   Usuario: require("./models/Usuario")(sequelize),
   Venta: require("./models/Venta")(sequelize),
-  
-  // --- ✅ CORRECCIÓN: AÑADIR ESTA LÍNEA QUE FALTABA ---
   ArqueoCaja: require("./models/ArqueoCaja")(sequelize),
 };
 
@@ -66,7 +70,7 @@ app.get("/", (req, res) => {
   );
 });
 
-// Endpoint de PUSH (sin cambios, tu lógica original está bien)
+// Endpoint de PUSH
 app.post("/sync/push", async (req, res) => {
   const registros = req.body;
   console.log(`Recibidos ${registros.length} registros para PUSH.`);
@@ -107,7 +111,7 @@ app.post("/sync/push", async (req, res) => {
   }
 });
 
-// Endpoint de PULL (sin cambios, tu lógica original está bien)
+// Endpoint de PULL
 app.get("/sync/pull", async (req, res) => {
   const lastSyncTime = req.query.lastSyncTime;
   console.log(`Petición de PULL para cambios desde: ${lastSyncTime}`);
@@ -124,6 +128,9 @@ app.get("/sync/pull", async (req, res) => {
 
     for (const modelName in models) {
       const Model = models[modelName];
+      // Ignoramos la tabla de suscripciones para el pull, ya que no es un dato del cliente
+      if (Model.tableName === 'Suscripciones') continue;
+
       const changes = await Model.findAll({
         where: { updatedAt: { [Op.gt]: syncDate } },
         paranoid: false,
@@ -146,7 +153,7 @@ app.get("/sync/pull", async (req, res) => {
   }
 });
 
-// Endpoint de Verificación de Suscripción (sin cambios, tu lógica original está bien)
+// Endpoint de Verificación de Suscripción
 app.get("/subscription/status", async (req, res) => {
     const { licenseKey } = req.query;
     if (!licenseKey) {
@@ -166,6 +173,14 @@ app.get("/subscription/status", async (req, res) => {
                 message: "Este programa ha sido desactivado. Por favor, contacte con soporte."
             });
         }
+        
+        // Si no hay fecha de expiración, la suscripción es vitalicia y siempre está activa.
+        if (!subscription.expires_on) {
+            return res.status(200).json({
+                status: 'active',
+                message: 'Suscripción vitalicia activa.'
+            });
+        }
 
         const now = new Date();
         const expires = new Date(subscription.expires_on);
@@ -181,7 +196,7 @@ app.get("/subscription/status", async (req, res) => {
         
         if (expires < threeDaysFromNow) {
             return res.status(200).json({
-                status: 'active', // Sigue activo pero con advertencia
+                status: 'warning', // El estado cambia a 'warning' para que la app local pueda mostrar una alerta.
                 message: `¡Atención! Su suscripción está por vencer el ${expires.toLocaleDateString()}.`
             });
         }
@@ -199,21 +214,47 @@ app.get("/subscription/status", async (req, res) => {
 });
 
 
-// --- Iniciar el servidor ---
-const startServer = async () => {
-  try {
-    await sequelize.authenticate();
-    console.log("✅ Conexión a la base de datos de Railway establecida.");
-    
-    // Usamos { alter: true } para que Sequelize añada las columnas que falten sin borrar datos
-    await sequelize.sync({ alter: true });
-    console.log("✅ Todos los modelos fueron sincronizados con la base de datos en la nube.");
+// --- Iniciar el servidor (VERSIÓN MEJORADA CON REINTENTOS) ---
 
-    app.listen(PORT, () => {
-      console.log(`🚀 Servidor escuchando en el puerto ${PORT}`);
-    });
-  } catch (error) {
-    console.error("❌ No se pudo conectar o sincronizar con la base de datos de Railway:", error);
+// Función auxiliar para pausar la ejecución
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+const startServer = async () => {
+  const MAX_RETRIES = 5; // Intentaremos conectar 5 veces
+  const RETRY_DELAY = 5000; // Esperaremos 5 segundos entre cada intento
+
+  for (let i = 1; i <= MAX_RETRIES; i++) {
+    try {
+      // Intento N° i de conectar
+      console.log(`[DB] Intento de conexión a la base de datos N° ${i}/${MAX_RETRIES}...`);
+      await sequelize.authenticate();
+      console.log("✅ Conexión a la base de datos de Railway establecida.");
+      
+      // Si la conexión fue exitosa, sincronizamos y arrancamos el servidor
+      await sequelize.sync({ alter: true });
+      console.log("✅ Todos los modelos fueron sincronizados con la base de datos en la nube.");
+
+      app.listen(PORT, () => {
+        console.log(`🚀 Servidor escuchando en el puerto ${PORT}`);
+      });
+
+      // Si todo funcionó, salimos del bucle
+      return; 
+    
+    } catch (error) {
+      console.error(`❌ Falló el intento de conexión N° ${i}. Error: ${error.name}`);
+      
+      // Si este fue el último intento, nos rendimos y mostramos el error completo.
+      if (i === MAX_RETRIES) {
+        console.error("❌ No se pudo conectar a la base de datos después de varios intentos:", error);
+        // Salimos del proceso con un código de error para que Railway sepa que algo salió muy mal.
+        process.exit(1); 
+      }
+      
+      // Si no es el último intento, esperamos antes de volver a intentarlo.
+      console.log(`[DB] Reintentando en ${RETRY_DELAY / 1000} segundos...`);
+      await sleep(RETRY_DELAY);
+    }
   }
 };
 
