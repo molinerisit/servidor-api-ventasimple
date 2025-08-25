@@ -2,7 +2,6 @@ const express = require("express");
 const { Sequelize, Op } = require("sequelize");
 const cors = require("cors");
 
-
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
@@ -10,8 +9,8 @@ app.use(express.json({ limit: "50mb" }));
 const PORT = process.env.PORT || 3000;
 
 // --- Conexión a la Base de Datos de Railway ---
-const DATABASE_URL =
-  "postgresql://postgres:FEjOXRbGCMEnLrvmEJIcyvMWTzVUBFMD@shortline.proxy.rlwy.net:14492/railway";
+// IMPORTANTE: Es una buena práctica usar variables de entorno para la URL de la base de datos.
+const DATABASE_URL = process.env.DATABASE_URL || "postgresql://postgres:FEjOXRbGCMEnLrvmEJIcyvMWTzVUBFMD@shortline.proxy.rlwy.net:14492/railway";
 
 const sequelize = new Sequelize(DATABASE_URL, {
   dialect: "postgres",
@@ -38,8 +37,7 @@ const models = {
   Insumo: require("./models/Insumo")(sequelize),
   InsumoDepartamento: require("./models/InsumoDepartamento")(sequelize),
   InsumoFamilia: require("./models/InsumoFamilia")(sequelize),
-  Suscripcion: require("./models/Suscripcion")(sequelize), // <-- AÑADIR NUEVO MODELO
-
+  Suscripcion: require("./models/Suscripcion")(sequelize),
   MovimientoCuentaCorriente: require("./models/MovimientoCuentaCorriente")(
     sequelize
   ),
@@ -49,10 +47,13 @@ const models = {
   Proveedor: require("./models/Proveedor")(sequelize),
   Usuario: require("./models/Usuario")(sequelize),
   Venta: require("./models/Venta")(sequelize),
+  
+  // --- ✅ CORRECCIÓN: AÑADIR ESTA LÍNEA QUE FALTABA ---
+  ArqueoCaja: require("./models/ArqueoCaja")(sequelize),
 };
 
-// 2. ✅ APLICAMOS LAS ASOCIACIONES (¡AHORA SÍ!)
-const { applyAssociations } = require('./associations'); // Asume que 'associations.js' está en la raíz
+// 2. APLICAMOS LAS ASOCIACIONES (¡AHORA SÍ!)
+const { applyAssociations } = require('./associations');
 applyAssociations(models);
 console.log("✅ Modelos y asociaciones cargados en la API.");
 
@@ -65,6 +66,7 @@ app.get("/", (req, res) => {
   );
 });
 
+// Endpoint de PUSH (sin cambios, tu lógica original está bien)
 app.post("/sync/push", async (req, res) => {
   const registros = req.body;
   console.log(`Recibidos ${registros.length} registros para PUSH.`);
@@ -105,6 +107,7 @@ app.post("/sync/push", async (req, res) => {
   }
 });
 
+// Endpoint de PULL (sin cambios, tu lógica original está bien)
 app.get("/sync/pull", async (req, res) => {
   const lastSyncTime = req.query.lastSyncTime;
   console.log(`Petición de PULL para cambios desde: ${lastSyncTime}`);
@@ -143,7 +146,7 @@ app.get("/sync/pull", async (req, res) => {
   }
 });
 
-
+// Endpoint de Verificación de Suscripción (sin cambios, tu lógica original está bien)
 app.get("/subscription/status", async (req, res) => {
     const { licenseKey } = req.query;
     if (!licenseKey) {
@@ -202,6 +205,7 @@ const startServer = async () => {
     await sequelize.authenticate();
     console.log("✅ Conexión a la base de datos de Railway establecida.");
     
+    // Usamos { alter: true } para que Sequelize añada las columnas que falten sin borrar datos
     await sequelize.sync({ alter: true });
     console.log("✅ Todos los modelos fueron sincronizados con la base de datos en la nube.");
 
