@@ -1,4 +1,4 @@
-const { DataTypes } = require('sequelize');
+const { DataTypes, Sequelize } = require('sequelize'); // <-- CORRECCIÓN: Añadir Sequelize a la importación
 
 module.exports = (sequelize) => {
   const Suscripcion = sequelize.define('Suscripcion', {
@@ -7,8 +7,10 @@ module.exports = (sequelize) => {
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true
     },
-    license_key: { // Coincide con la de la app local
+    license_key: {
       type: DataTypes.UUID,
+      // Ahora `Sequelize.literal` funcionará porque Sequelize ha sido importado.
+      defaultValue: Sequelize.literal('gen_random_uuid()'), 
       allowNull: false,
       unique: true
     },
@@ -29,5 +31,6 @@ module.exports = (sequelize) => {
     tableName: 'Suscripciones',
     timestamps: true
   });
+  
   return Suscripcion;
 };
